@@ -2199,19 +2199,84 @@ static int imx477_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&imx477->sd, client, &imx477_subdev_ops);
 
+
+
+
+	/*match = of_match_device(imx477_dt_ids, dev);
+	if (!match)
+		return -ENODEV;
+	imx477->compatible_data =
+		(const struct imx477_compatible_data *)match->data;
+*/
+
+
+
+/* Modified code for ACPI (Advanced Configuration and Power Interface) */
+
+#ifdef CONFIG_OF
 	match = of_match_device(imx477_dt_ids, dev);
 	if (!match)
 		return -ENODEV;
 	imx477->compatible_data =
 		(const struct imx477_compatible_data *)match->data;
+#elif defined(CONFIG_ACPI)
+	match = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (!match)
+		return -ENODEV;
+	imx477->compatible_data = (const struct imx477_compatible_data *)match->data;
+#else
+	return -ENODEV;
+#endif
+
+
+
+
+#ifdef CONFIG_ACPI
+
+	imx477->compatible_data =
+		(const struct imx477_compatible_data *)&imx477_compatible;
+	imx477->trigger_mode_of = 1;
+
+#else
+	match = of_match_device(imx477_dt_ids, dev);
+	if (!match)
+		return -ENODEV;
+
+
+
+
+
 
 	/* Check the hardware configuration in device tree */
 	if (imx477_check_hwcfg(dev))
 		return -EINVAL;
 
+	/* Default the trigger mode from OF to -1, which means invalid 
+	ret = of_property_read_u32(dev->of_node, "trigger-mode", &tm_of);
+	imx477->trigger_mode_of = (ret == 0) ? tm_of : -1; */
+
+
+
+/* Modified code for ACPI (Advanced Configuration and Power Interface) */
+
+#ifdef CONFIG_OF
 	/* Default the trigger mode from OF to -1, which means invalid */
 	ret = of_property_read_u32(dev->of_node, "trigger-mode", &tm_of);
 	imx477->trigger_mode_of = (ret == 0) ? tm_of : -1;
+#elif defined(CONFIG_ACPI)
+	ret = device_property_read_u32(dev, "trigger-mode", &tm_of);
+	imx477->trigger_mode_of = (ret == 0) ? tm_of : -1;
+#else
+	imx477->trigger_mode_of = -1; // Default invalid value
+#endif
+
+
+
+
+
+
+
+
 
 	/* Get system clock (xclk) */
 	imx477->xclk = devm_clk_get(dev, NULL);
